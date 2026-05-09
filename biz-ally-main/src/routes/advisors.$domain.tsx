@@ -25,8 +25,7 @@ function AdvisorPage() {
   const { domain } = useParams({ from: "/advisors/$domain" });
   const nav = useNavigate();
   const m = meta[domain] ?? meta.grant;
-  // Read language from localStorage (set in Settings)
-  const language: Language = (localStorage.getItem("northstar_language") as Language) ?? "en";
+  const getLanguage = (): Language => (localStorage.getItem("northstar_language") as Language) ?? "en";
 
   const [conversation, setConversation] = useState<Conversation | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -47,7 +46,7 @@ function AdvisorPage() {
       try {
         const convos = await chatApi.listConversations(domain as AdvisorDomain);
         let convo = convos[0] ?? null;
-        if (!convo) convo = await chatApi.createConversation(domain as AdvisorDomain, language);
+        if (!convo) convo = await chatApi.createConversation(domain as AdvisorDomain, getLanguage());
         if (cancelled) return;
         setConversation(convo);
         const history = await chatApi.getMessages(convo.id);
@@ -72,7 +71,7 @@ function AdvisorPage() {
     setMsg("");
     setSending(true);
     try {
-      const res = await chatApi.sendMessage(conversation.id, userMsg.content, language);
+      const res = await chatApi.sendMessage(conversation.id, userMsg.content, getLanguage());
       setMessages((prev) => [...prev, res.message]);
     } catch {
       toast.error("Failed to send. Please try again.");
@@ -86,7 +85,10 @@ function AdvisorPage() {
     if (!file || !conversation) return;
     setUploadingDoc(true);
     try {
-      const res = await chatApi.uploadDocument(conversation.id, file, `Please analyze this contract: ${file.name}`, language);
+      const prompt = domain === "tax"
+        ? `Please analyze this tax document: ${file.name}`
+        : `Please analyze this contract: ${file.name}`;
+      const res = await chatApi.uploadDocument(conversation.id, file, prompt, getLanguage());
       setMessages((prev) => [...prev, res.message]);
       toast.success(`${file.name} analyzed.`);
     } catch (err: unknown) {
@@ -96,6 +98,8 @@ function AdvisorPage() {
       if (fileInputRef.current) fileInputRef.current.value = "";
     }
   };
+
+  const showUpload = domain === "contract" || domain === "tax";
 
   return (
     <SiteShell variant="paper">
@@ -115,13 +119,28 @@ function AdvisorPage() {
           <h1 className="mt-1 text-4xl">{m.t}</h1>
           <p className="mt-2 text-sm text-muted-foreground">{m.sub}</p>
 
-          {domain === "contract" && (
-            <div className="mt-4">
-              <input ref={fileInputRef} type="file" accept=".pdf,.txt,.md" onChange={handleFileUpload} className="hidden" id="contract-upload" />
-              <label htmlFor="contract-upload"
+          {/* Universal privacy notice */}
+          <div className="mt-4 rounded-lg border border-red-300 bg-red-50 px-4 py-3 text-sm font-medium text-red-800">
+            Do not share Social Security numbers, bank account numbers, IRS case/notice IDs, or any information you would not share with a third party. Your messages are processed by an AI model.
+          </div>
+
+          {/* Upload section — contract and tax */}
+          {showUpload && (
+            <div className="mt-3 space-y-3">
+              <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                <p className="font-medium">Before uploading, please remove or black out:</p>
+                <ul className="mt-1 space-y-0.5 text-xs">
+                  <li>• Social Security numbers (yours or anyone else's)</li>
+                  <li>• Bank account or routing numbers</li>
+                  <li>• IRS case numbers, notice IDs, or audit reference numbers</li>
+                  <li>• Any information you would not share with a third party</li>
+                </ul>
+                <p className="mt-2 text-xs text-amber-700">Your document is sent to an AI model for analysis. Do not upload documents containing active legal disputes or confidential personal financial data.</p>
+              </div>
+              <input ref={fileInputRef} type="file" accept=".pdf,.txt,.md" onChange={handleFileUpload} className="hidden" id="doc-upload" />
+              <label htmlFor="doc-upload"
                 className={`flex cursor-pointer items-center gap-2 rounded-lg border border-dashed border-border/60 px-4 py-3 text-sm text-muted-foreground transition hover:border-primary/60 hover:text-foreground ${uploadingDoc ? "opacity-50 pointer-events-none" : ""}`}>
-                <span>📎</span>
-                <span>{uploadingDoc ? "Analyzing document…" : "Upload contract PDF or text file"}</span>
+                <span>{uploadingDoc ? "Analyzing document…" : domain === "tax" ? "Upload tax document, IRS notice, or W-2 / 1099" : "Upload contract PDF or text file"}</span>
               </label>
             </div>
           )}
@@ -179,7 +198,7 @@ function AdvisorPage() {
           {conversation && (
             <GlassCard>
               <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground" style={{ fontFamily: "var(--font-mono-disp)" }}>session</p>
-              <p className="mt-2 text-xs text-muted-foreground">{messages.length} message{messages.length !== 1 ? "s" : ""} · {language.toUpperCase()}</p>
+              <p className="mt-2 text-xs text-muted-foreground">{messages.length} message{messages.length !== 1 ? "s" : ""} · {getLanguage().toUpperCase()}</p>
               <p className="mt-1 text-xs text-muted-foreground">Change language in <a href="/settings" className="underline">Settings</a></p>
             </GlassCard>
           )}
@@ -201,18 +220,15 @@ function ChatBubble({ who, children }: { who: "advisor" | "you"; children: React
 
 function MarkdownContent({ content }: { content: string }) {
   const lines = content.split("\n");
-  return (
-    <div className="space-y-2 leading-relaxed">
-      {lines.map((line, i) => {
-        if (!line.trim()) return <br key={i} />;
-        if (line.startsWith("### ")) return <h3 key={i} className="font-semibold mt-3">{line.slice(4)}</h3>;
-        if (line.startsWith("## ")) return <h2 key={i} className="font-semibold text-base mt-3">{line.slice(3)}</h2>;
-        if (line.startsWith("* ") || line.startsWith("- ")) return <p key={i} className="pl-3 border-l border-border/40">• {line.slice(2)}</p>;
-        if (line.startsWith("[CALENDAR_EVENT")) return null;
-        return <p key={i}>{renderInline(line)}</p>;
-      })}
-    </div>
-  );
+  const els: React.ReactNode[] = [];
+  lines.forEach((line, i) => {
+    if (!line.trim() || line.startsWith("[CALENDAR_EVENT")) return;
+    if (line.startsWith("### ")) { els.push(<p key={i} className="font-semibold text-sm mt-2">{renderInline(line.slice(4))}</p>); return; }
+    if (line.startsWith("## ") || line.startsWith("# ")) { els.push(<p key={i} className="font-bold text-base mt-2">{renderInline(line.replace(/^#{1,2} /, ""))}</p>); return; }
+    if (line.startsWith("* ") || line.startsWith("- ")) { els.push(<p key={i} className="pl-3">• {renderInline(line.slice(2))}</p>); return; }
+    els.push(<p key={i}>{renderInline(line)}</p>);
+  });
+  return <div className="space-y-1.5 leading-relaxed text-sm">{els}</div>;
 }
 
 function renderInline(text: string): React.ReactNode {

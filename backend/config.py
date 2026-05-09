@@ -12,8 +12,6 @@ class Settings(BaseSettings):
     supabase_service_key: str
 
     # Tavily
-    tavily_api_key: str
-
     # Google Calendar OAuth
     google_client_id: str
     google_client_secret: str

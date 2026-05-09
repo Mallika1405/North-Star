@@ -1,7 +1,7 @@
 """
 Gemini service.
-- gemini-1.5-flash: fast ops (chat, grant search interpretation, operations)
-- gemini-1.5-pro: heavy reasoning (contract analysis, complex tax questions)
+- gemini-2.5-flash: fast ops (chat, grant search interpretation, operations)
+- gemini-2.5-pro: heavy reasoning (contract analysis, complex tax questions)
 """
 
 import google.generativeai as genai
@@ -92,10 +92,30 @@ async def chat_with_advisor(
         raise
 
 
+CATEGORY_LABELS = {
+    "grants": "grants and direct funding programs",
+    "pitch_competitions": "pitch competitions and startup prizes",
+    "scholarships": "scholarships and fellowships for entrepreneurs",
+    "subsidies": "subsidies, tax credits, and government incentive programs",
+    "investor_funding": "investor funding, accelerators, and venture programs",
+    "certifications": "certifications that unlock funding and contracts",
+    "sbir_sttr": "SBIR/STTR federal R&D grants for startups",
+}
+
+async def run_funding_search_analysis(
+    search_results_raw: str,
+    profile: dict,
+    language: str = "en",
+    category: str = "grants",
+) -> dict:
+    """Alias for run_grant_search_analysis with category support."""
+    return await run_grant_search_analysis(search_results_raw, profile, language, category)
+
 async def run_grant_search_analysis(
     search_results_raw: str,
     profile: dict,
     language: str = "en",
+    category: str = "grants",
 ) -> dict:
     """
     Send raw Tavily search results + profile to Gemini for structured grant analysis.
@@ -120,6 +140,8 @@ BUSINESS PROFILE:
 RAW SEARCH RESULTS:
 {search_results_raw}
 
+The results you are analyzing are specifically for: " + CATEGORY_LABELS.get(category, category) + ".
+Only extract real, currently-available opportunities from this category.
 Respond with ONLY a JSON array. No markdown, no explanation, just the JSON.
 Each item must have these exact fields:
 {{
@@ -357,3 +379,59 @@ def _extract_sources_from_response(content: str) -> list[dict]:
         })
 
     return sources[:10]  # cap at 10 citations per response
+
+
+async def categorize_user_goal(free_text: str) -> dict:
+    """
+    Take a user's free-text goal and map it to standard categories
+    plus a suggested first action.
+    """
+    STANDARD_GOALS = [
+        "find_grants_funding",
+        "understand_taxes",
+        "review_contract",
+        "hire_employee",
+        "health_inspection",
+        "pitch_competitions_networking",
+        "connect_investors",
+        "grow_customers",
+        "get_certified",
+        "learn_build_skills",
+    ]
+
+    prompt = f"""
+A small business owner described their goal as: "{free_text}"
+
+Map this to 1-3 of these standard categories (use exact IDs):
+{', '.join(STANDARD_GOALS)}
+
+Also provide:
+1. A one-sentence explanation of why you mapped it this way
+2. A suggested first action they can take right now
+
+Respond ONLY with JSON:
+{{
+  "matched_goals": ["goal_id_1", "goal_id_2"],
+  "explanation": "string",
+  "suggested_action": "string",
+  "suggested_advisor_domain": "grant" | "tax" | "contract" | "operations"
+}}
+"""
+    try:
+        model = genai.GenerativeModel(
+            FLASH_MODEL,
+            generation_config=genai.GenerationConfig(
+                response_mime_type="application/json",
+                temperature=0.1,
+            ),
+        )
+        response = await model.generate_content_async(prompt)
+        return json.loads(response.text)
+    except Exception as e:
+        logger.error(f"Goal categorization error: {e}")
+        return {
+            "matched_goals": ["find_grants_funding"],
+            "explanation": "Could not categorize — defaulting to grants and funding.",
+            "suggested_action": "Start with the Grant advisor to find funding opportunities.",
+            "suggested_advisor_domain": "grant",
+        }

@@ -156,7 +156,8 @@ async def send_message(
 
     conversation = conv_result.data
     domain = conversation["domain"]
-    language = data.language or conversation.get("language", "en")
+    language = data.language or "en"  # always use request language, not stored conversation language
+    import logging; logging.getLogger(__name__).info(f"[LANG DEBUG] data.language={data.language!r} -> using language={language!r}")
 
     # Load business profile
     profile = _get_profile(supabase, user["user_id"])
@@ -323,7 +324,14 @@ async def upload_document(
         "document_filename": file.filename,
     }).execute()
 
+    msg = assistant_result.data[0]
+    if isinstance(msg.get("sources_cited"), str):
+        try:
+            msg["sources_cited"] = json.loads(msg["sources_cited"])
+        except Exception:
+            msg["sources_cited"] = []
+
     return ChatResponse(
-        message=assistant_result.data[0],
+        message=msg,
         conversation_id=conversation_id,
     )

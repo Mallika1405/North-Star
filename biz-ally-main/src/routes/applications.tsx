@@ -70,13 +70,46 @@ function ApplicationsPage() {
   const handleConfirmCalendar = async () => {
     setAddingToCalendar(true);
     try {
+      // Check if calendar is connected first
+      const status = await calendarApi.status();
+      if (!status.connected) {
+        // Store pending events so we can add them after OAuth
+        sessionStorage.setItem("pending_calendar_events", JSON.stringify(previewEvents));
+        // Get OAuth URL and redirect
+        const { auth_url } = await calendarApi.getAuthUrl();
+        window.location.href = auth_url;
+        return;
+      }
       const res = await calendarApi.addEvents(previewEvents);
       if (res.added.length > 0) toast.success(`${res.added.length} events added to Google Calendar.`);
-      if (res.failed.length > 0) toast.error(`${res.failed.length} events failed. Is Google Calendar connected in Settings?`);
+      if (res.failed.length > 0) toast.error(`${res.failed.length} events failed to add.`);
       setShowPreview(false);
-    } catch { toast.error("Calendar not connected. Go to Settings → Connect Google Calendar."); }
-    finally { setAddingToCalendar(false); }
+    } catch (err: any) {
+      toast.error(err?.message ?? "Could not add to calendar. Please try again.");
+    } finally { setAddingToCalendar(false); }
   };
+
+  // After Google OAuth redirect back, add pending events
+  // Run after loading=false so calendar token is confirmed saved
+  useEffect(() => {
+    if (loading) return; // wait for apps to load first
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("calendar") === "connected") {
+      window.history.replaceState({}, "", "/applications");
+      const pending = sessionStorage.getItem("pending_calendar_events");
+      if (pending) {
+        sessionStorage.removeItem("pending_calendar_events");
+        const events = JSON.parse(pending);
+        toast.info("Adding events to Google Calendar…");
+        calendarApi.addEvents(events).then((res) => {
+          if (res.added.length > 0) toast.success(`${res.added.length} events added to Google Calendar.`);
+          if (res.failed.length > 0) toast.error(`${res.failed.length} events failed.`);
+        }).catch((err) => toast.error("Could not add events: " + (err?.message ?? "unknown error")));
+      } else {
+        toast.success("Google Calendar connected!");
+      }
+    }
+  }, [loading]);
 
   return (
     <SiteShell variant="paper">

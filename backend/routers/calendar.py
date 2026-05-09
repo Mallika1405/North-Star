@@ -58,11 +58,13 @@ async def google_oauth_callback(
         await exchange_code_for_token(code=code, user_id=user_id)
         # Redirect to frontend success page
         frontend_url = settings.cors_origins_list[0]
-        return RedirectResponse(url=f"{frontend_url}/settings?calendar=connected")
+        # Redirect back to wherever they came from (state may contain referrer)
+        redirect_path = "/applications" if "applications" in (state or "") else "/settings"
+        return RedirectResponse(url=f"{frontend_url}{redirect_path}?calendar=connected")
     except Exception as e:
         logger.error(f"OAuth callback error for user {user_id}: {e}")
         frontend_url = settings.cors_origins_list[0]
-        return RedirectResponse(url=f"{frontend_url}/settings?calendar=error")
+        return RedirectResponse(url=f"{frontend_url}/applications?calendar=error")
 
 
 @router.post("/add-events", response_model=CalendarAddResponse)

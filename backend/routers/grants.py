@@ -24,8 +24,8 @@ logger = logging.getLogger(__name__)
 def _get_profile(supabase, user_id: str) -> dict | None:
     result = supabase.table("business_profiles").select("*").eq(
         "user_id", user_id
-    ).maybe_single().execute()
-    return result.data
+    ).execute()
+    return result.data[0] if result.data else None
 
 
 # ============================================================
@@ -89,6 +89,61 @@ async def search_grants(
         sources_searched=search_data["sources_searched"][:10],
     )
 
+
+
+
+# ============================================================
+# CATEGORIZED FUNDING SEARCH
+# ============================================================
+
+@router.post("/funding-search")
+async def search_funding_categorized(
+    request: GrantSearchRequest,
+    user: dict = Depends(get_current_user),
+):
+    """
+    Live funding search returning results separated by category:
+    grants, pitch_competitions, scholarships, subsidies, investor_funding, certifications.
+    """
+    from services.search_service import search_funding_by_category
+    from services.gemini_service import run_funding_search_analysis
+    import json
+
+    supabase = get_supabase()
+    profile = _get_profile(supabase, user["user_id"])
+
+    if not profile:
+        raise HTTPException(status_code=400, detail="Please complete your business profile first.")
+
+    try:
+        search_data = await search_funding_by_category(
+            profile=profile,
+            additional_keywords=request.additional_keywords,
+        )
+    except Exception as e:
+        logger.error(f"Funding search error: {e}")
+        raise HTTPException(status_code=503, detail="Search temporarily unavailable.")
+
+    # Analyze each category with Gemini
+    categorized_results = {}
+    for category, raw_results in search_data["results_by_category"].items():
+        if not raw_results:
+            continue
+        raw_text = json.dumps(raw_results, indent=2)
+        analysis = await run_grant_search_analysis(
+            search_results_raw=raw_text,
+            profile=profile,
+            language=request.language,
+            category=category,
+        )
+        categorized_results[category] = analysis.get("results", [])
+
+    return {
+        "categorized_results": categorized_results,
+        "search_note": f"Searched live on {search_data['search_date']}. Verify all deadlines at primary sources.",
+        "sources_searched": search_data["sources_searched"][:15],
+        "categories_searched": search_data["categories_searched"],
+    }
 
 # ============================================================
 # GRANT APPLICATIONS CRUD

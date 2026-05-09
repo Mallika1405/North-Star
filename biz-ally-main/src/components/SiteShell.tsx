@@ -5,7 +5,7 @@ import { authStore } from "@/lib/auth";
 const nav = [
   { to: "/dashboard", label: "Dashboard" },
   { to: "/advisors/grant", label: "Advisors" },
-  { to: "/grants", label: "Grants" },
+  { to: "/grants", label: "Funding" },
   { to: "/applications", label: "Applications" },
   { to: "/settings", label: "Settings" },
 ];
