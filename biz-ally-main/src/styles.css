@@ -1,0 +1,84 @@
+@import "tailwindcss" source(none);
+@source "../src";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
+  --radius-3xl: calc(var(--radius) + 12px);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-ring-offset-background: var(--background);
+  --color-maroon: var(--maroon);
+  --color-pink: var(--pink);
+  --color-tangerine: var(--tangerine);
+  --color-sage: var(--sage);
+  --color-cream: var(--cream);
+  --font-display: "Cormorant Garamond", serif;
+  --font-script: "Dancing Script", cursive;
+  --font-poiret: "Cormorant Garamond", serif;
+  --font-mono-disp: "Inter", system-ui, sans-serif;
+  --font-sans: "Inter", system-ui, sans-serif;
+}
+
+:root {
+  --radius: 1.25rem;
+  /* Cream / paper light theme — matches PDF base */
+  --background: oklch(0.985 0.008 80);
+  --foreground: oklch(0.22 0.06 285);
+  --card: oklch(1 0 0 / 0.7);
+  --card-foreground: oklch(0.22 0.06 285);
+  --popover: oklch(0.99 0.005 80);
+  --popover-foreground: oklch(0.22 0.06 285);
+  --primary: oklch(0.45 0.15 10);                 /* maroon */
+  --primary-foreground: oklch(0.99 0.01 80);
+  --secondary: oklch(0.95 0.02 30);
+  --secondary-foreground: oklch(0.22 0.06 285);
+  --muted: oklch(0.95 0.01 80);
+  --muted-foreground: oklch(0.5 0.05 285);
+  --accent: oklch(0.88 0.06 20);                  /* dusty pink */
+  --accent-foreground: oklch(0.22 0.06 285);
+  --destructive: oklch(0.55 0.22 20);
+  --destructive-foreground: oklch(0.99 0.01 0);
+  --border: oklch(0.88 0.02 285 / 0.6);
+  --input: oklch(0.97 0.01 80);
+  --ring: oklch(0.55 0.12 10);
+
+  --maroon: oklch(0.45 0.15 10);
+  --pink: oklch(0.85 0.07 15);
+  --tangerine: oklch(0.72 0.15 50);
+  --sage: oklch(0.6 0.08 165);
+  --cream: oklch(0.985 0.008 80);
+}
+
+@layer base {
+  * { border-color: var(--color-border); }
+  html, body { background-color: var(--color-background); color: var(--color-foreground); }
+  body { font-family: var(--font-sans); font-weight: 400; }
+  h1, h2, h3, h4 { font-family: var(--font-display); letter-spacing: -0.01em; font-weight: 500; }
+  .font-script { font-family: var(--font-script); font-weight: 600; }
+  .font-display { font-family: var(--font-display); }
+  .font-italic-display { font-family: var(--font-display); font-style: italic; font-weight: 500; }
+}

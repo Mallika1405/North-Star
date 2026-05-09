@@ -1,19 +1,31 @@
-from fastapi import HTTPException, Security, status
+from fastapi import HTTPException, Security, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from utils.supabase_client import get_supabase
 import logging
 
 logger = logging.getLogger(__name__)
-security = HTTPBearer()
+security = HTTPBearer(auto_error=False)
 
 
 async def get_current_user(
-    credentials: HTTPAuthorizationCredentials = Security(security),
+    request: Request,
+    credentials: HTTPAuthorizationCredentials | None = Security(security),
 ) -> dict:
     """
     Validate the Bearer token via Supabase and return the user dict.
+    Skips auth for OPTIONS preflight requests.
     Raises 401 if token is invalid or expired.
     """
+    # Let OPTIONS preflight through
+    if request.method == "OPTIONS":
+        return {"user_id": None, "email": None, "token": None}
+
+    if not credentials:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated",
+        )
+
     token = credentials.credentials
     supabase = get_supabase()
 

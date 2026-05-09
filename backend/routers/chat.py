@@ -106,7 +106,16 @@ async def get_messages(
         "conversation_id", conversation_id
     ).order("created_at").execute()
 
-    return result.data or []
+    # sources_cited is stored as JSON string — parse it back to list
+    messages = result.data or []
+    for msg in messages:
+        if isinstance(msg.get("sources_cited"), str):
+            import json as _json
+            try:
+                msg["sources_cited"] = _json.loads(msg["sources_cited"])
+            except Exception:
+                msg["sources_cited"] = []
+    return messages
 
 
 @router.delete("/conversations/{conversation_id}", status_code=status.HTTP_204_NO_CONTENT)
