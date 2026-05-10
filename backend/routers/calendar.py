@@ -29,13 +29,14 @@ async def calendar_status(user: dict = Depends(get_current_user)):
 
 
 @router.get("/auth-url", response_model=GoogleAuthURL)
-async def get_google_auth_url(user: dict = Depends(get_current_user)):
+async def get_google_auth_url(referrer: str = "settings", user: dict = Depends(get_current_user)):
     """
     Generate the Google OAuth URL for calendar authorization.
     Frontend opens this URL for the user to approve calendar access.
     """
-    # Pass user_id as state so we can identify them in the callback
-    auth_url = get_auth_url(state=user["user_id"])
+    # Encode user_id and referrer in state: "user_id|referrer"
+    state = f"{user['user_id']}|{referrer}"
+    auth_url = get_auth_url(state=state)
     return GoogleAuthURL(auth_url=auth_url)
 
 
@@ -47,19 +48,20 @@ async def google_oauth_callback(
 ):
     """
     Google OAuth callback. Exchanges code for token and redirects to frontend.
-    State contains the user_id.
+    State contains "user_id|referrer".
     """
     if not state:
         raise HTTPException(status_code=400, detail="Missing state parameter.")
 
-    user_id = state
+    # Parse state: "user_id" or "user_id|referrer"
+    parts = state.split("|")
+    user_id = parts[0]
+    referrer = parts[1] if len(parts) > 1 else "settings"
 
     try:
         await exchange_code_for_token(code=code, user_id=user_id)
-        # Redirect to frontend success page
         frontend_url = settings.cors_origins_list[0]
-        # Redirect back to wherever they came from (state may contain referrer)
-        redirect_path = "/applications" if "applications" in (state or "") else "/settings"
+        redirect_path = "/applications" if referrer == "applications" else "/settings"
         return RedirectResponse(url=f"{frontend_url}{redirect_path}?calendar=connected")
     except Exception as e:
         logger.error(f"OAuth callback error for user {user_id}: {e}")

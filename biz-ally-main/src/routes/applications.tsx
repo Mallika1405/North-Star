@@ -76,7 +76,7 @@ function ApplicationsPage() {
         // Store pending events so we can add them after OAuth
         sessionStorage.setItem("pending_calendar_events", JSON.stringify(previewEvents));
         // Get OAuth URL and redirect
-        const { auth_url } = await calendarApi.getAuthUrl();
+        const { auth_url } = await calendarApi.getAuthUrl("applications");
         window.location.href = auth_url;
         return;
       }

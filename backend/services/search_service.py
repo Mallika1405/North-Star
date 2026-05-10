@@ -14,7 +14,7 @@ import logging
 logger = logging.getLogger(__name__)
 genai.configure(api_key=settings.gemini_api_key)
 
-FLASH_MODEL = "gemini-1.5-flash"
+FLASH_MODEL = "gemini-2.5-flash"
 
 CATEGORY_META = {
     "grants":            "Direct grants from government agencies and foundations",

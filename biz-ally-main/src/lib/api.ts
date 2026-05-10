@@ -342,7 +342,7 @@ export const grants = {
 export const calendar = {
   status: () => apiFetch<{ connected: boolean }>("/calendar/status"),
 
-  getAuthUrl: () => apiFetch<{ auth_url: string }>("/calendar/auth-url"),
+  getAuthUrl: (referrer = "settings") => apiFetch<{ auth_url: string }>(`/calendar/auth-url?referrer=${referrer}`),
 
   addEvents: (events: CalendarEventPreview[]) =>
     apiFetch<{ added: string[]; failed: string[] }>("/calendar/add-events", {

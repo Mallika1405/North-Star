@@ -223,6 +223,7 @@ function MarkdownContent({ content }: { content: string }) {
   const els: React.ReactNode[] = [];
   lines.forEach((line, i) => {
     if (!line.trim() || line.startsWith("[CALENDAR_EVENT")) return;
+    if (line.startsWith("#### ")) { els.push(<p key={i} className="font-semibold text-sm mt-2">{renderInline(line.slice(5))}</p>); return; }
     if (line.startsWith("### ")) { els.push(<p key={i} className="font-semibold text-sm mt-2">{renderInline(line.slice(4))}</p>); return; }
     if (line.startsWith("## ") || line.startsWith("# ")) { els.push(<p key={i} className="font-bold text-base mt-2">{renderInline(line.replace(/^#{1,2} /, ""))}</p>); return; }
     if (line.startsWith("* ") || line.startsWith("- ")) { els.push(<p key={i} className="pl-3">• {renderInline(line.slice(2))}</p>); return; }
